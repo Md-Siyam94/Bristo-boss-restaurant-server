@@ -28,9 +28,26 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
+        const userCollection = client.db("bristoDB").collection("users");
         const menuCollection = client.db("bristoDB").collection("menu");
         const reviewCollection = client.db("bristoDB").collection("reviews");
         const cartCollection = client.db("bristoDB").collection("carts");
+
+        // user Collection
+        app.post("/users", async(req, res)=>{
+            const user = req.body;
+
+            // insert user if user is not exist by simple way
+
+            const query = {email: user.email}
+            const existingUser = await userCollection.findOne(query);
+            if(existingUser){
+                return res.send({message: "User already exist" , insertedId: null})
+            }
+            const result = await userCollection.insertOne(user);
+            res.send(result)
+        })
+
         // Menu collection
         app.get("/menu", async (req, res) => {
             const result = await menuCollection.find().toArray();
@@ -60,7 +77,7 @@ async function run() {
         })
 
         app.delete("/carts/:id", async(req, res)=>{
-            const id = req.params.id;git add
+            const id = req.params.id;
             const query = {_id: new ObjectId(id)};
             const result = await cartCollection.deleteOne(query);
             res.send(result)
