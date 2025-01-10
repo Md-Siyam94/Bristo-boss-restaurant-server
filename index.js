@@ -34,6 +34,12 @@ async function run() {
         const cartCollection = client.db("bristoDB").collection("carts");
 
         // user Collection
+
+        app.get("/users", async(req, res)=>{
+            const result = await userCollection.find().toArray();
+            res.send(result)
+        })
+
         app.post("/users", async(req, res)=>{
             const user = req.body;
 
