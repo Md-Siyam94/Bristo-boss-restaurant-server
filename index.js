@@ -62,7 +62,7 @@ async function run() {
             const email = req.decoded.email;
             const query = { email: email };
             const user = await userCollection.findOne(query);
-            const isAdmin = user.role === "admin";
+            const isAdmin = user?.role === "admin";
             if (!isAdmin) {
                 return res.status(403).send({ message: "Forbidden access" })
             }
@@ -142,6 +142,23 @@ async function run() {
             const id = req.params.id;
             const query = {_id: new ObjectId(id)};
             const result = await menuCollection.findOne(query);
+            res.send(result)
+        })
+
+        app.patch("/menu/:id", async(req, res)=>{
+            const item= req.body;
+            const id = req.params.id;
+            const filter = {_id: new ObjectId(id)}
+            const updatedDoc = {
+                $set:{
+                    name: item.name,
+                    image: item.image,
+                    recipe: item.recipe,
+                    price: item.price,
+                    category: item.category
+                }
+            }
+            const result = await menuCollection.updateOne(filter,updatedDoc);
             res.send(result)
         })
         
