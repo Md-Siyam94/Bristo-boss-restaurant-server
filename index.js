@@ -208,6 +208,7 @@ async function run() {
 
 
         // payment intent
+ 
         app.post("/create-payment-intent", async (req, res) => {
             const { price } = req.body;
             const amount = parseInt(price * 100);
@@ -220,6 +221,16 @@ async function run() {
             res.send({
                 clientSecret: paymentIntent.client_secret
             })
+        })
+
+        app.get("/payments/:email",verifyToken, async(req, res)=>{
+            const email= req.params.email;
+            const query = {email: email};
+            if(email !== req.decoded.email){
+               returngit add . res.status(403).send({message: "Forbidden access"})
+            }
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result)
         })
 
         app.post("/payments", async (req, res) => {
