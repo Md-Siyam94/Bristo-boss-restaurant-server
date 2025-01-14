@@ -3,6 +3,7 @@ const app = express()
 const cors = require('cors');
 const jwt = require("jsonwebtoken")
 require('dotenv').config()
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000
 
@@ -37,11 +38,12 @@ async function run() {
         const menuCollection = client.db("bristoDB").collection("menu");
         const reviewCollection = client.db("bristoDB").collection("reviews");
         const cartCollection = client.db("bristoDB").collection("carts");
+        const paymentCollection = client.db("bristoDB").collection("payments");
 
         const verifyToken = (req, res, next) => {
             // console.log(req.headers.authorization);
             if (!req.headers.authorization) {
-               return res.status(401).send({ message: "Forbidden access" })
+                return res.status(401).send({ message: "Forbidden access" })
             }
             const token = req.headers.authorization.split(' ')[1];
             // if (!token) {
@@ -113,7 +115,7 @@ async function run() {
             res.send(result)
         })
 
-        app.patch("/users/admin/:id",verifyToken, verifyAdmin, async (req, res) => {
+        app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updatedDoc = {
@@ -125,7 +127,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete("/users/:id",verifyToken, verifyAdmin, async (req, res) => {
+        app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(query);
@@ -138,19 +140,19 @@ async function run() {
             res.send(result)
         })
 
-        app.get("/menu/:id",async (req, res)=>{
+        app.get("/menu/:id", async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await menuCollection.findOne(query);
             res.send(result)
         })
 
-        app.patch("/menu/:id", async(req, res)=>{
-            const item= req.body;
+        app.patch("/menu/:id", async (req, res) => {
+            const item = req.body;
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)}
+            const filter = { _id: new ObjectId(id) }
             const updatedDoc = {
-                $set:{
+                $set: {
                     name: item.name,
                     image: item.image,
                     recipe: item.recipe,
@@ -158,19 +160,19 @@ async function run() {
                     category: item.category
                 }
             }
-            const result = await menuCollection.updateOne(filter,updatedDoc);
+            const result = await menuCollection.updateOne(filter, updatedDoc);
             res.send(result)
         })
-        
-        app.post("/menu",verifyToken, verifyAdmin, async(req, res)=>{
+
+        app.post("/menu", verifyToken, verifyAdmin, async (req, res) => {
             const item = req.body;
             const result = await menuCollection.insertOne(item)
             res.send(result)
         })
 
-        app.delete("/menu/:id", verifyToken, verifyAdmin, async(req, res)=>{
+        app.delete("/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await menuCollection.deleteOne(query);
             res.send(result)
         })
@@ -205,6 +207,35 @@ async function run() {
         })
 
 
+        // payment intent
+        app.post("/create-payment-intent", async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+            console.log(amount, "payment intent hanki bunki");
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ['card']
+            })
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+
+        app.post("/payments", async (req, res) => {
+            const payment = req.body;
+            const paymentResult = await paymentCollection.insertOne(payment);
+
+
+            // carefully delete each item from the cart
+            const query = {_id: {
+                $in: payment.cartIds.map(id=> new ObjectId(id))
+                
+            }}
+            const deleteResult = await cartCollection.deleteMany(query)
+            console.log("payment info", payment);
+            res.send({paymentResult, deleteResult})
+        })
 
 
         // Send a ping to confirm a successful connection
